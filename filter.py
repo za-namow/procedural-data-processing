@@ -4,74 +4,72 @@ import os
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__))
 )
+file_path = os.path.join(__location__, "Cities.csv")
 
-cities = []
-with open(os.path.join(__location__, "Cities.csv")) as f:
-    rows = csv.DictReader(f)
-    for r in rows:
-        cities.append(dict(r))
+class Table:
+    def __init__(self, rows):
+        self.rows = rows
 
+    def filter(self, condition):
+        filtered_rows = [row for row in self.rows if condition(row)]
+        return Table(filtered_rows)
 
-def filter_items(condition, dict_list):
-    """Return a new list containing only the dictionaries that satisfy
-
-    the given condition function.
-    """
-    return [item for item in dict_list if condition(item)]
-
-
-def aggregate(aggregation_key, aggregation_function, dict_list):
-    """Aggregate values associated with aggregation_key using the
-
-    provided aggregation function.
-    """
-    values = [item[aggregation_key] for item in dict_list]
-    return aggregation_function(values)
+    def aggregate(self, aggregation_key, aggregation_function):
+        values = [row[aggregation_key] for row in self.rows]
+        return aggregation_function(values)
 
 
-#-----
-# 1. Print the average temperature of all the cities
-avg_temp = aggregate(
-    "temperature",
-    lambda temps: sum(float(t) for t in temps) / len(temps) if temps else 0,
-    cities,
-)
-print(avg_temp)
-print()
+class DataLoader:
+    def __init__(self, filepath):
+        self.filepath = filepath
 
-# 2. Print all cities in Germany
-germany_cities = filter_items(lambda c: c["country"] == "Germany", cities)
-for city in germany_cities:
-    print(city["city"])
-print()
+    def load(self):
+        rows = []
+        with open(self.filepath) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append(dict(row))
+        return Table(rows)
 
-# 3. Print all cities in Spain with a temperature above 12°C
-spain_warm_cities = filter_items(
-    lambda c: c["country"] == "Spain" and float(c["temperature"]) > 12, cities
-)
-for city in spain_warm_cities:
-    print(city["city"])
-print()
 
-# 4. Count the number of unique countries
-unique_countries_count = aggregate(
-    "country", lambda countries: len(set(countries)), cities
-)
-print(unique_countries_count)
-print()
+if __name__ == "__main__":
+    loader = DataLoader(file_path)
+    cities_table = loader.load()
+    avg_temp = cities_table.aggregate(
+        "temperature",
+        lambda temps: sum(float(t) for t in temps) / len(temps) if temps else 0
+    )
+    print(avg_temp)
+    print()
+    germany_table = cities_table.filter(lambda c: c["country"] == "Germany")
+    for city in germany_table.rows:
+        print(city["city"])
+    print()
 
-# 5. Print the average temperature for all the cities in Germany
-germany_temps_avg = aggregate(
-    "temperature",
-    lambda temps: sum(float(t) for t in temps) / len(temps) if temps else 0,
-    germany_cities,
-)
-print(germany_temps_avg)
-print()
+    spain_warm_table = cities_table.filter(
+        lambda c: c["country"] == "Spain" and float(c["temperature"]) > 12
+    )
+    for city in spain_warm_table.rows:
+        print(city["city"])
+    print()
 
-# 6. Print the max temperature for all the cities in Italy
-italy_cities = filter_items(lambda c: c["country"] == "Italy", cities)
-max_italy_temp = aggregate(
-    "temperature", lambda temps: max(float(t) for t in temps) if temps else None, italy_cities
-)
-print(max_italy_temp)
+    unique_countries_count = cities_table.aggregate(
+        "country", 
+        lambda countries: len(set(countries))
+    )
+    print(unique_countries_count)
+    print()
+
+    germany_avg_temp = germany_table.aggregate(
+        "temperature",
+        lambda temps: sum(float(t) for t in temps) / len(temps) if temps else 0
+    )
+    print(germany_avg_temp)
+    print()
+
+    italy_table = cities_table.filter(lambda c: c["country"] == "Italy")
+    max_italy_temp = italy_table.aggregate(
+        "temperature", 
+        lambda temps: max(float(t) for t in temps) if temps else None
+    )
+    print(max_italy_temp)
